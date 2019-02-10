@@ -43,6 +43,8 @@ class CreateOrUpdateMixin(View):
             if not self.action_update:
                 self.article = Article(**art_data)
                 self.article.save()
+            else:
+                self.article = Article.objects.filter(title__iexact=art_data['title'])
         except ValidationError as e:
             self.make_response(e.message)
             self.article = get_object_or_404(Article, title__iexact=art_data['title'])
