@@ -11,11 +11,11 @@ request_format = 'application/json'
 
 
 class CreateOrUpdateMixin(View):
+    action_update = False
     decoded_data = None
     status_code = None
     article = None
     response_mes = ''
-    action_update = False
 
     def post(self, request):
         if request.META.get('CONTENT_TYPE') != request_format:
@@ -25,8 +25,9 @@ class CreateOrUpdateMixin(View):
 
             try:
                 self.make_article()
-                self.save_tags()
-                self.result_response()
+                if self.article:
+                    self.save_tags()
+                    self.result_response()
             except HttpResponseBadRequest as bad_response:
                 self.make_response(bad_response, bad_response.status_code)
 
@@ -39,13 +40,16 @@ class CreateOrUpdateMixin(View):
         art_data = self.decoded_data['article']
 
         try:
-            self.article = Article(**art_data)
-            self.article.save()
+            if not self.action_update:
+                self.article = Article(**art_data)
+                self.article.save()
         except ValidationError as e:
             self.make_response(e.message)
             self.article = get_object_or_404(Article, title__iexact=art_data['title'])
         else:
-            self.make_response(f'article: "{self.article.title}" has successfully saved')
+            mes = f'article: "{self.article.title}" has successfully saved' if self.article \
+                else f"article \"{art_data['title']}\" not found for editing"
+            self.make_response(mes)
 
     def save_tags(self):
         if self.action_update:
