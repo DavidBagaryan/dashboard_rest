@@ -25,6 +25,9 @@ class CreateArticle(CreateOrUpdateMixin):
 class EditArticle(CreateOrUpdateMixin):
     action_update = True
 
+    def get(self, request, title):
+        self.article = get_object_or_404(Article, title__iexact=title)
+
 
 class ViewArticle(APIView):
     def get(self, request, title):

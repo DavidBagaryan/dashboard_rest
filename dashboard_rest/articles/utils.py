@@ -17,40 +17,56 @@ class CreateOrUpdateMixin(View):
     article = None
     response_mes = ''
 
-    def post(self, request):
+    def post(self, request, title=None):
         if request.META.get('CONTENT_TYPE') != request_format:
             self.make_response('only json data allowed', 400)
         else:
             self.decoded_data = json.loads(request.body.decode('utf-8'))
+            if 'article' not in self.decoded_data:
+                raise HttpResponseBadRequest('no article data in request')
 
             try:
-                self.make_article()
-                if self.article:
-                    self.save_tags()
-                    self.result_response()
+                if self.action_update and title:
+                    self.update_article(title)
+                else:
+                    self.make_article()
             except HttpResponseBadRequest as bad_response:
                 self.make_response(bad_response, bad_response.status_code)
 
         return HttpResponse(content=self.response_mes, status=self.status_code)
 
-    def make_article(self):
-        if 'article' not in self.decoded_data:
-            raise HttpResponseBadRequest('no article data in request')
-
+    def update_article(self, title):
         art_data = self.decoded_data['article']
+        search = Article.objects.filter(title__iexact=title)
 
-        try:
-            if not self.action_update:
-                self.article = Article(**art_data)
-                self.article.save()
+        if search:
+            search.update(**art_data)
+            self.article = get_object_or_404(Article, title__iexact=art_data['title'])
+            if title != self.article.title:
+                mes = f'article: "{self.article.title}" ("{title}") has updated'
             else:
-                self.article = Article.objects.filter(title__iexact=art_data['title'])
+                mes = f'article: "{self.article.title}" has updated'
+        else:
+            mes = f'article: "{title}" not found'
+
+        self.make_response(mes)
+
+    def make_article(self):
+        art_data = self.decoded_data['article']
+        try:
+            self.article = Article(**art_data)
+            self.article.save()
         except ValidationError as e:
             self.make_response(e.message)
-            self.article = get_object_or_404(Article, title__iexact=art_data['title'])
+            self.article = Article.objects.get(title__iexact=art_data['title'])
         else:
-            mes = f'article: "{self.article.title}" has successfully saved' if self.article \
-                else f"article \"{art_data['title']}\" not found for editing"
+            if self.article:
+                mes = f'article: "{self.article.title}" has successfully saved'
+                self.save_tags()
+                self.result_response()
+            else:
+                mes = f"article \"{art_data['title']}\" not found for editing"
+
             self.make_response(mes)
 
     def save_tags(self):
