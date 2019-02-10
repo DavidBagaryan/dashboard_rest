@@ -42,6 +42,8 @@ class CreateOrUpdateMixin(View):
         if search:
             search.update(**art_data)
             self.article = get_object_or_404(Article, title__iexact=art_data['title'])
+            self.save_tags()
+            self.result_response()
             if title != self.article.title:
                 mes = f'article: "{self.article.title}" ("{title}") has updated'
             else:
